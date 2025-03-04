@@ -38,6 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
+      // Refresh all queries after login
+      queryClient.invalidateQueries();
     },
     onError: (error: Error) => {
       toast({
@@ -55,6 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
+      // Refresh all queries after registration
+      queryClient.invalidateQueries();
     },
     onError: (error: Error) => {
       toast({
@@ -71,6 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);
+      // Clear all queries after logout
+      queryClient.clear();
     },
     onError: (error: Error) => {
       toast({
