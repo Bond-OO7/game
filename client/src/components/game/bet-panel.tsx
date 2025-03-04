@@ -17,10 +17,11 @@ const COLORS = [
 
 const NUMBERS = Array.from({ length: 10 }, (_, i) => ({
   value: i,
-  colors: [
-    ...(i % 2 === 0 ? ["green"] : ["red"]),
-    ...(i === 0 || i === 5 ? ["violet"] : [])
-  ]
+  colors: i === 0
+    ? ["violet", "red"]
+    : i === 5
+    ? ["violet", "green"]
+    : [i % 2 === 0 ? "green" : "red"]
 }));
 
 export default function BetPanel() {
@@ -39,6 +40,7 @@ export default function BetPanel() {
         title: "Bet placed successfully",
       });
       setAmount("");
+      window.location.reload();
     },
     onError: (error: Error) => {
       toast({

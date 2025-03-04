@@ -37,6 +37,7 @@ export default function WalletPanel() {
         title: "Transaction successful",
       });
       setAmount("");
+      window.location.reload();
     },
     onError: (error: Error) => {
       toast({

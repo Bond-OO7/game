@@ -37,21 +37,17 @@ export class GameServer {
     const number = Math.floor(Math.random() * 10);
     let colors: ("red" | "green" | "violet")[] = [];
 
-    // Violet appears on 0 and 5
-    if (number === 0 || number === 5) {
-      colors.push("violet");
+    // Special color combinations for 0 and 5
+    if (number === 0) {
+      colors = ["violet", "red"];
+    } else if (number === 5) {
+      colors = ["violet", "green"];
+    } else {
+      // For other numbers
+      colors = [number % 2 === 0 ? "green" : "red"];
     }
 
-    // Red appears on odd numbers
-    if (number % 2 === 1) {
-      colors.push("red");
-    }
-    // Green appears on even numbers
-    else {
-      colors.push("green");
-    }
-
-    const color = colors.length > 1 ? colors.join("+") : colors[0];
+    const color = colors.join("+");
     const price = parseFloat((Math.random() * 100 + 50).toFixed(2));
 
     // Update period with results
@@ -61,6 +57,38 @@ export class GameServer {
       price,
       isActive: false
     });
+
+    // Process all bets for this period
+    const bets = await storage.getPeriodBets(this.currentPeriod.id);
+    for (const bet of bets) {
+      let isWin = false;
+      let payout = 0;
+
+      if (bet.type === "color") {
+        // Color bet wins if any of the result colors match the bet
+        isWin = colors.includes(bet.value as any);
+        payout = isWin ? bet.amount * 2 : 0;
+      } else {
+        // Number bet
+        isWin = number.toString() === bet.value;
+        payout = isWin ? bet.amount * 9 : 0;
+      }
+
+      // Update bet result and user balance
+      await storage.updateBetResult(bet.id, {
+        result: isWin ? "win" : "loss",
+        payout
+      });
+
+      if (isWin) {
+        await storage.updateUserBalance(bet.userId, payout);
+        await storage.createTransaction({
+          userId: bet.userId,
+          type: "win",
+          amount: payout
+        });
+      }
+    }
 
     // Start new period after cooldown
     setTimeout(() => this.startNewPeriod(), COOLDOWN_PERIOD);

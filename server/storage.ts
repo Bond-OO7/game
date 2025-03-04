@@ -20,6 +20,8 @@ export interface IStorage {
   // Bet operations
   createBet(bet: Omit<Bet, "id" | "createdAt">): Promise<Bet>;
   getUserBets(userId: number, limit: number): Promise<Bet[]>;
+  getPeriodBets(periodId: string): Promise<Bet[]>;
+  updateBetResult(betId: number, result: { result: "win" | "loss"; payout: number }): Promise<Bet>;
 
   // Transaction operations
   createTransaction(transaction: Omit<Transaction, "id" | "createdAt">): Promise<Transaction>;
@@ -50,9 +52,7 @@ export class MemStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    return Array.from(this.users.values()).find((user) => user.username === username);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -65,7 +65,7 @@ export class MemStorage implements IStorage {
   async updateUserBalance(userId: number, amount: number): Promise<User> {
     const user = await this.getUser(userId);
     if (!user) throw new Error("User not found");
-    
+
     const newBalance = parseFloat(user.balance) + amount;
     const updatedUser = { ...user, balance: newBalance.toFixed(2) };
     this.users.set(userId, updatedUser);
@@ -75,9 +75,9 @@ export class MemStorage implements IStorage {
   async getCurrentPeriod(): Promise<Period> {
     const now = new Date();
     // Find the current active period or create a new one
-    const currentPeriod = Array.from(this.periods.values()).find(p => p.isActive);
+    const currentPeriod = Array.from(this.periods.values()).find((p) => p.isActive);
     if (currentPeriod) return currentPeriod;
-    
+
     const newPeriod = this.createNewPeriod(now);
     this.periods.set(newPeriod.id, newPeriod);
     return newPeriod;
@@ -85,7 +85,7 @@ export class MemStorage implements IStorage {
 
   async getPeriodHistory(limit: number): Promise<Period[]> {
     return Array.from(this.periods.values())
-      .filter(p => !p.isActive)
+      .filter((p) => !p.isActive)
       .sort((a, b) => b.endTime.getTime() - a.endTime.getTime())
       .slice(0, limit);
   }
@@ -93,7 +93,7 @@ export class MemStorage implements IStorage {
   async setPeriodResult(periodId: string, result: Partial<Period>): Promise<Period> {
     const period = this.periods.get(periodId);
     if (!period) throw new Error("Period not found");
-    
+
     const updatedPeriod = { ...period, ...result };
     this.periods.set(periodId, updatedPeriod);
     return updatedPeriod;
@@ -103,7 +103,7 @@ export class MemStorage implements IStorage {
     const newBet: Bet = {
       ...bet,
       id: this.bets.length + 1,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
     this.bets.push(newBet);
     return newBet;
@@ -111,16 +111,32 @@ export class MemStorage implements IStorage {
 
   async getUserBets(userId: number, limit: number): Promise<Bet[]> {
     return this.bets
-      .filter(bet => bet.userId === userId)
+      .filter((bet) => bet.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, limit);
+  }
+
+  async getPeriodBets(periodId: string): Promise<Bet[]> {
+    return this.bets.filter((bet) => bet.periodId === periodId);
+  }
+
+  async updateBetResult(
+    betId: number,
+    result: { result: "win" | "loss"; payout: number },
+  ): Promise<Bet> {
+    const index = this.bets.findIndex((bet) => bet.id === betId);
+    if (index === -1) throw new Error("Bet not found");
+
+    const updatedBet = { ...this.bets[index], ...result };
+    this.bets[index] = updatedBet;
+    return updatedBet;
   }
 
   async createTransaction(transaction: Omit<Transaction, "id" | "createdAt">): Promise<Transaction> {
     const newTransaction: Transaction = {
       ...transaction,
       id: this.transactions.length + 1,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
     this.transactions.push(newTransaction);
     return newTransaction;
@@ -128,7 +144,7 @@ export class MemStorage implements IStorage {
 
   async getUserTransactions(userId: number, limit: number): Promise<Transaction[]> {
     return this.transactions
-      .filter(tx => tx.userId === userId)
+      .filter((tx) => tx.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, limit);
   }
@@ -136,17 +152,19 @@ export class MemStorage implements IStorage {
   private createNewPeriod(now: Date): Period {
     const startTime = new Date(now);
     const endTime = new Date(startTime.getTime() + 3 * 60 * 1000);
-    
-    const periodId = `${startTime.getFullYear()}${
-      String(startTime.getMonth() + 1).padStart(2, '0')}${
-      String(startTime.getDate()).padStart(2, '0')}${
-      Math.floor(startTime.getHours() * 60 + startTime.getMinutes() / 3)}`;
-    
+
+    const periodId = `${startTime.getFullYear()}${String(startTime.getMonth() + 1).padStart(
+      2,
+      "0",
+    )}${String(startTime.getDate()).padStart(2, "0")}${Math.floor(
+      startTime.getHours() * 60 + startTime.getMinutes() / 3,
+    )}`;
+
     return {
       id: periodId,
       startTime,
       endTime,
-      isActive: true
+      isActive: true,
     };
   }
 }
