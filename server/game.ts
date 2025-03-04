@@ -35,9 +35,23 @@ export class GameServer {
 
     // Generate random result
     const number = Math.floor(Math.random() * 10);
-    const colors: ("red" | "green" | "violet")[] = ["red", "green"];
-    if (number === 0 || number === 5) colors.push("violet");
-    const color = colors[Math.floor(Math.random() * colors.length)];
+    let colors: ("red" | "green" | "violet")[] = [];
+
+    // Violet appears on 0 and 5
+    if (number === 0 || number === 5) {
+      colors.push("violet");
+    }
+
+    // Red appears on odd numbers
+    if (number % 2 === 1) {
+      colors.push("red");
+    }
+    // Green appears on even numbers
+    else {
+      colors.push("green");
+    }
+
+    const color = colors.length > 1 ? colors.join("+") : colors[0];
     const price = parseFloat((Math.random() * 100 + 50).toFixed(2));
 
     // Update period with results

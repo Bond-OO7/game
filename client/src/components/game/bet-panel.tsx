@@ -16,7 +16,13 @@ const COLORS = [
   { name: "violet", class: "bg-violet-500" }
 ] as const;
 
-const NUMBERS = Array.from({ length: 10 }, (_, i) => i);
+const NUMBERS = Array.from({ length: 10 }, (_, i) => ({
+  value: i,
+  colors: [
+    ...(i % 2 === 0 ? ["green"] : ["red"]),
+    ...(i === 0 || i === 5 ? ["violet"] : [])
+  ]
+}));
 
 export default function BetPanel() {
   const { toast } = useToast();
@@ -110,14 +116,23 @@ export default function BetPanel() {
 
             <TabsContent value="number" className="mt-0">
               <div className="grid grid-cols-5 gap-4">
-                {NUMBERS.map((num) => (
+                {NUMBERS.map(({ value, colors }) => (
                   <Button
-                    key={num}
-                    variant="outline"
-                    onClick={() => handleBet(num.toString())}
+                    key={value}
+                    className={cn(
+                      "h-16 relative overflow-hidden",
+                      colors.length > 1 && "border-4 border-violet-500"
+                    )}
+                    onClick={() => handleBet(value.toString())}
                     disabled={isCooldown || betMutation.isPending}
                   >
-                    {num}
+                    <div className={cn(
+                      "absolute inset-0",
+                      colors[0] === "red" ? "bg-red-500" : "bg-green-500"
+                    )} />
+                    <span className="relative z-10 text-white text-xl font-bold">
+                      {value}
+                    </span>
                   </Button>
                 ))}
               </div>

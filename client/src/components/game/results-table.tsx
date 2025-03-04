@@ -19,6 +19,20 @@ export default function ResultsTable() {
     queryKey: ["/api/bets/history"],
   });
 
+  const renderColorIndicator = (color: string) => {
+    const colors = color.split("+");
+    return (
+      <div className="flex gap-1">
+        {colors.map((c, i) => (
+          <span
+            key={i}
+            className={`inline-block w-4 h-4 rounded-full bg-${c}-500`}
+          />
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
       <Card>
@@ -40,11 +54,9 @@ export default function ResultsTable() {
                 <TableRow key={period.id}>
                   <TableCell>{period.id}</TableCell>
                   <TableCell>{period.price?.toFixed(2)}</TableCell>
-                  <TableCell>{period.number}</TableCell>
+                  <TableCell className="font-medium">{period.number}</TableCell>
                   <TableCell>
-                    <span
-                      className={`inline-block w-4 h-4 rounded-full bg-${period.color}-500`}
-                    />
+                    {period.color && renderColorIndicator(period.color)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -73,9 +85,7 @@ export default function ResultsTable() {
                   <TableCell>{bet.periodId}</TableCell>
                   <TableCell>
                     {bet.type === "color" ? (
-                      <span
-                        className={`inline-block w-4 h-4 rounded-full bg-${bet.value}-500`}
-                      />
+                      renderColorIndicator(bet.value)
                     ) : (
                       bet.value
                     )}
