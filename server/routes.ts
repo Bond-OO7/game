@@ -25,9 +25,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     log(`WebSocket server error: ${error.message}`);
   });
 
-  wss.on("connection", (ws, req) => {
+  wss.on("connection", async (ws, req) => {
     log(`New WebSocket connection from ${req.socket.remoteAddress}`);
+
+    // Send immediate game state update
+    const currentPeriod = await storage.getCurrentPeriod();
+    ws.send(JSON.stringify({
+      type: "gameState",
+      period: currentPeriod
+    }));
+
     gameServer.addClient(ws);
+
+    ws.on("message", (data) => {
+      log(`WebSocket message received: ${data}`);
+    });
 
     ws.on("error", (error) => {
       log(`WebSocket client error: ${error.message}`);
@@ -35,6 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     ws.on("close", () => {
       log("WebSocket client disconnected");
+      gameServer.removeClient(ws);
     });
   });
 

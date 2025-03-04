@@ -1,6 +1,7 @@
 import { WebSocket } from "ws";
 import { storage } from "./storage";
 import { Period } from "@shared/schema";
+import { log } from "./vite";
 
 const PERIOD_LENGTH = 3 * 60 * 1000; // 3 minutes
 const COOLDOWN_PERIOD = 30 * 1000; // 30 seconds
@@ -16,8 +17,10 @@ export class GameServer {
   }
 
   private async initializeGame() {
+    log("Initializing game server...");
     this.currentPeriod = await storage.getCurrentPeriod();
     this.schedulePeriodEnd();
+    log(`Game initialized with period: ${this.currentPeriod?.id}`); // Added ?. for safety
   }
 
   private schedulePeriodEnd() {
@@ -27,11 +30,14 @@ export class GameServer {
     const endTime = this.currentPeriod.endTime.getTime();
     const timeLeft = Math.max(0, endTime - now);
 
+    log(`Scheduling period end in ${timeLeft}ms`);
     this.periodTimer = setTimeout(() => this.endPeriod(), timeLeft);
   }
 
   private async endPeriod() {
     if (!this.currentPeriod) return;
+
+    log(`Ending period ${this.currentPeriod.id}`);
 
     // Generate random result
     const number = Math.floor(Math.random() * 10);
@@ -50,6 +56,8 @@ export class GameServer {
     const color = colors.join("+");
     const price = parseFloat((Math.random() * 100 + 50).toFixed(2));
 
+    log(`Generated result: number=${number}, color=${color}, price=${price}`);
+
     // Update period with results
     const completedPeriod = await storage.setPeriodResult(this.currentPeriod.id, {
       number,
@@ -60,6 +68,8 @@ export class GameServer {
 
     // Process all bets for this period
     const bets = await storage.getPeriodBets(this.currentPeriod.id);
+    log(`Processing ${bets.length} bets for period ${this.currentPeriod.id}`);
+
     for (const bet of bets) {
       let isWin = false;
       let payout = 0;
@@ -88,6 +98,8 @@ export class GameServer {
           amount: payout
         });
       }
+
+      log(`Processed bet ${bet.id}: ${isWin ? 'win' : 'loss'}, payout=${payout}`);
     }
 
     // Start new period after cooldown
@@ -102,6 +114,7 @@ export class GameServer {
 
   private async startNewPeriod() {
     this.currentPeriod = await storage.getCurrentPeriod();
+    log(`Starting new period: ${this.currentPeriod?.id}`); // Added ?. for safety
     this.schedulePeriodEnd();
 
     this.broadcast({
@@ -112,6 +125,7 @@ export class GameServer {
 
   addClient(ws: WebSocket) {
     this.clients.add(ws);
+    log(`Client added. Total clients: ${this.clients.size}`);
 
     // Send current game state
     if (this.currentPeriod) {
@@ -122,12 +136,19 @@ export class GameServer {
     }
 
     ws.on("close", () => {
-      this.clients.delete(ws);
+      this.removeClient(ws);
     });
+  }
+
+  removeClient(ws: WebSocket) {
+    this.clients.delete(ws);
+    log(`Client removed. Total clients: ${this.clients.size}`);
   }
 
   private broadcast(message: any) {
     const messageStr = JSON.stringify(message);
+    log(`Broadcasting message: ${messageStr}`);
+
     Array.from(this.clients).forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(messageStr);
