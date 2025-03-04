@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Period } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 type GameContextType = {
   period: Period | null;
@@ -15,6 +16,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: period } = useQuery<Period>({
     queryKey: ["/api/periods/current"],
@@ -25,55 +27,72 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   // WebSocket connection
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+    function connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
-    socket.onopen = () => {
-      console.log('WebSocket Connected');
-      setIsConnected(true);
-      setWs(socket);
-    };
+      socket.onopen = () => {
+        console.log('WebSocket Connected');
+        setIsConnected(true);
+        setWs(socket);
+        toast({
+          title: "Connected to game server",
+        });
+      };
 
-    socket.onclose = () => {
-      console.log('WebSocket Disconnected');
-      setIsConnected(false);
-      setWs(null);
-      // Try to reconnect after a delay
-      setTimeout(() => {
-        setWs(null); // This will trigger useEffect to try reconnecting
-      }, 5000);
-    };
+      socket.onclose = () => {
+        console.log('WebSocket Disconnected');
+        setIsConnected(false);
+        setWs(null);
+        toast({
+          title: "Disconnected from game server",
+          description: "Attempting to reconnect...",
+          variant: "destructive",
+        });
+        // Try to reconnect after a delay
+        setTimeout(connect, 5000);
+      };
 
-    socket.onerror = (error) => {
-      console.error('WebSocket Error:', error);
-    };
+      socket.onerror = (error) => {
+        console.error('WebSocket Error:', error);
+        toast({
+          title: "Connection error",
+          description: "Failed to connect to game server",
+          variant: "destructive",
+        });
+      };
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('WebSocket message received:', data);
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('WebSocket message received:', data);
 
-        switch (data.type) {
-          case "gameState":
-          case "periodStart":
-            queryClient.setQueryData(["/api/periods/current"], data.period);
-            break;
-          case "periodEnd":
-            queryClient.invalidateQueries({ queryKey: ["/api/periods/history"] });
-            queryClient.invalidateQueries({ queryKey: ["/api/bets/history"] });
-            break;
+          switch (data.type) {
+            case "gameState":
+            case "periodStart":
+              queryClient.setQueryData(["/api/periods/current"], data.period);
+              break;
+            case "periodEnd":
+              queryClient.invalidateQueries({ queryKey: ["/api/periods/history"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/bets/history"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/transactions/history"] });
+              window.location.reload(); // Refresh the page when period ends
+              break;
+          }
+        } catch (error) {
+          console.error('Error processing message:', error);
         }
-      } catch (error) {
-        console.error('Error processing message:', error);
-      }
-    };
+      };
+    }
+
+    connect();
 
     return () => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.close();
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.close();
       }
     };
-  }, [queryClient]);
+  }, [queryClient, toast]);
 
   // Timer logic
   useEffect(() => {
@@ -93,16 +112,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     return () => clearInterval(interval);
   }, [period]);
-
-  // Auto-refresh queries
-  useEffect(() => {
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ["/api/periods/history"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bets/history"] });
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [queryClient]);
 
   return (
     <GameContext.Provider

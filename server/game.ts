@@ -90,13 +90,16 @@ export class GameServer {
         payout
       });
 
+      // Create transaction record for both wins and losses
+      await storage.createTransaction({
+        userId: bet.userId,
+        type: isWin ? "win" : "loss",
+        amount: isWin ? payout : bet.amount
+      });
+
+      // Update balance only for wins (losses were deducted when bet was placed)
       if (isWin) {
         await storage.updateUserBalance(bet.userId, payout);
-        await storage.createTransaction({
-          userId: bet.userId,
-          type: "win",
-          amount: payout
-        });
       }
 
       log(`Processed bet ${bet.id}: ${isWin ? 'win' : 'loss'}, payout=${payout}`);

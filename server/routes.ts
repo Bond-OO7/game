@@ -57,8 +57,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/periods/history", (req, res) => {
+    const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
-    storage.getPeriodHistory(limit).then(periods => res.json(periods));
+    storage.getPeriodHistory(page * limit).then(periods => {
+      // Return only the last page worth of records
+      const startIndex = (page - 1) * limit;
+      res.json(periods.slice(startIndex, startIndex + limit));
+    });
   });
 
   app.post("/api/bets", async (req, res) => {
@@ -108,8 +113,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bets/history", (req, res) => {
     if (!req.user) return res.sendStatus(401);
 
+    const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
-    storage.getUserBets(req.user.id, limit).then(bets => res.json(bets));
+    storage.getUserBets(req.user.id, page * limit).then(bets => {
+      // Return only the last page worth of records
+      const startIndex = (page - 1) * limit;
+      res.json(bets.slice(startIndex, startIndex + limit));
+    });
   });
 
   // Transaction routes
@@ -145,8 +155,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/transactions/history", (req, res) => {
     if (!req.user) return res.sendStatus(401);
 
+    const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
-    storage.getUserTransactions(req.user.id, limit).then(transactions => res.json(transactions));
+    storage.getUserTransactions(req.user.id, page * limit).then(transactions => {
+      // Return only the last page worth of records
+      const startIndex = (page - 1) * limit;
+      res.json(transactions.slice(startIndex, startIndex + limit));
+    });
   });
 
   return httpServer;

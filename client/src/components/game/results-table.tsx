@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Period, Bet } from "@shared/schema";
@@ -9,14 +10,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
+const PAGE_SIZE = 10;
 
 export default function ResultsTable() {
+  const [parityPage, setParityPage] = useState(1);
+  const [resultsPage, setResultsPage] = useState(1);
+
   const { data: periods } = useQuery<Period[]>({
-    queryKey: ["/api/periods/history"],
+    queryKey: ["/api/periods/history", parityPage],
+    queryFn: async () => {
+      const res = await fetch(`/api/periods/history?page=${parityPage}&limit=${PAGE_SIZE}`);
+      return res.json();
+    },
   });
 
   const { data: bets } = useQuery<Bet[]>({
-    queryKey: ["/api/bets/history"],
+    queryKey: ["/api/bets/history", resultsPage],
+    queryFn: async () => {
+      const res = await fetch(`/api/bets/history?page=${resultsPage}&limit=${PAGE_SIZE}`);
+      return res.json();
+    },
   });
 
   const renderColorIndicator = (color: string) => {
@@ -62,6 +83,24 @@ export default function ResultsTable() {
               ))}
             </TableBody>
           </Table>
+          <div className="mt-4">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setParityPage(p => Math.max(1, p - 1))}
+                    disabled={parityPage === 1}
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setParityPage(p => p + 1)}
+                    disabled={!periods || periods.length < PAGE_SIZE}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
         </CardContent>
       </Card>
 
@@ -112,6 +151,24 @@ export default function ResultsTable() {
               ))}
             </TableBody>
           </Table>
+          <div className="mt-4">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setResultsPage(p => Math.max(1, p - 1))}
+                    disabled={resultsPage === 1}
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setResultsPage(p => p + 1)}
+                    disabled={!bets || bets.length < PAGE_SIZE}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
         </CardContent>
       </Card>
     </div>
